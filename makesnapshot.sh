@@ -4,7 +4,8 @@
 # a common time stamp.
 # Requires a mount point for the root of each file system being specified
 # in /etc/fstab. It is mounted as needed.
-# <example>
+#
+# Further documentation can be found in enclosed README.md
 #
 # originally from:
 # https://wiki.archlinux.org/index.php/Btrfs_-_Tips_and_tricks

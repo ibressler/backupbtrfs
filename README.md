@@ -2,10 +2,44 @@
 
 Creates bootable, rolling snapshots of btrfs root filesystems on suspend/powerdown automatically
 
-a common time stamp.
-Requires a mount point for the root of each file system being specified
-in /etc/fstab. It is mounted as needed.
-<example>
+## Requirements & Assumptions
+
+Each invocation of `makesnapshot.sh` creates a new snapshot based on the same time stamp on all *monitored* filesystems.
+*Monitored* filesystems are identified by `/run/btrfs-XYZ` mount-points in `/etc/fstab` (see below for an example).
+If the mount-points does not exist they are created first as well as unmounted and removed after operation.
+
+Furthermore, it is assumes that the active filesystem which should be taken a snapshot of is actually a subvolume.
+For each snapshot there is a new directory on each top-level filesystem having the snapshot name.
+
+Top-level structure:
+```
+/run/btrfs-root:
+@
+@2015-06-14_155234/@
+@2015-06-14_164429/@
+@2015-06-14_172805/@
+
+/run/btrfs-home:
+@home
+@2015-06-14_155234/@home
+@2015-06-14_164429/@home
+@2015-06-14_172805/@home
+```
+
+## Bootable Snapshots
+
+After creating a new snapshot by `btrfs subvolume snapshot` it is modified for convenience:
+
+* A file `/SNAPSHOT-TIMESTAMP` containing the time stamp is created at the root of the snapshot.
+* The issue file `/etc/issue` is adjusted on the root filesystem snapshot (assuming subvolume name *@*) to contain the original text appended with the snapshot name.
+* The `/etc/fstab` file is adjusted to let the `subvol=@XYZ` parameter point to the appropriate snapshot.
+* In order to be able to boot into a snapshot, a custom grub submenu in `/etc/grub.d/40_custom` is created. It contains the modified default menuentry copied from `/boot/grub/grub.cfg`. To put the changes into place, `update-grub` is run.
+
+## Removing Outdated Snapshots
+
+On successive runs of `makesnapshot.sh` it first removes outdated snapshots.
+In order to accomplish this it extracts the time stamp of all existing snapshots and compares them
+with a reference date, by default 30 days ago. If a snapshot is older it is removed by `btrfs subvolume delete`.
 
 # Tested on
 
@@ -32,4 +66,8 @@ GPLv3
 # Naming
 
 purely arbitrarily by running `apg -m 5`
+
+# Contact
+
+Feel free to contact me for any comments, feedback or critics!
 
