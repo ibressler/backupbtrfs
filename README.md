@@ -52,6 +52,19 @@ On successive runs of `makesnapshot.sh` it first removes outdated snapshots.
 In order to accomplish this it extracts the time stamp of all existing snapshots and compares them
 with a reference date, by default 30 days ago. If a snapshot is older it is removed by `btrfs subvolume delete`.
 
+## Invoking on Suspend or Power-down
+
+Enclosed is a script `onupdown.sh` which can be run automatically prior to entering suspend or powerdown state.
+It opens up a message window to give the user a change to skip the snapshot creation and continues otherwise
+by running `makesnapshot.sh` after a delay of 10 seconds.
+
+The snapshot script is run in a xterm window to show the terminal output which is also written
+to a log file `/var/log/snapshot.log` separately.
+The operation finishes by closing the xterm window after another delay of 10 seconds.
+
+It may work with any other `x-terminal-emulator` programs but adjusting the default font size
+is rather simple with an xterm which should be available on many systems anyway (as long as there is X).
+
 ## Tested on
 
 Works for the author on Ubuntu 14.04 with / and /home on different filesystems/devices and by mounting them via `subvol=@` and `subvol=@home` respectively.
