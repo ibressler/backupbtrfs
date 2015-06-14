@@ -12,8 +12,8 @@
 MAKESNAPSHOT="/usr/local/bin/makesnapshot.sh"
 LOGFILE="/var/log/snapshot.log"
 
-TIMEOUT=3
-DELAYFINALLY=5
+TIMEOUT=10
+DELAYFINALLY=10
 XMESSAGE="/usr/bin/xmessage"
 XMESSAGEOPTS="-center -default no -buttons yes:0,no:1 -timeout ${TIMEOUT} -file -"
 ECHO="/bin/echo"
