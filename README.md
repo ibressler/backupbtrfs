@@ -59,6 +59,8 @@ Enclosed is a script `onupdown.sh` which can be run automatically prior to enter
 It opens up a message window to give the user a change to skip the snapshot creation and continues otherwise
 by running `makesnapshot.sh` after a delay of 10 seconds.
 
+![Question Dialog](/media/dialog.png)
+
 The snapshot script is run in a xterm window to show the terminal output which is also written
 to a log file `/var/log/snapshot.log` separately.
 The operation finishes by closing the xterm window after another delay of 10 seconds.
