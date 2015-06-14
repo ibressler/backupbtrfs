@@ -64,7 +64,7 @@ UUID=cc-dd-ee /home           btrfs   defaults,<more opts>,subvol=@home  0   1
 UUID=cc-dd-ee /run/btrfs-home btrfs   defaults,<more opts>,noauto        0   1
 ```
 
-USE WITH EXTREME CARE, DATA LOSS MAY OCCUR, NO WARRANTY!
+**USE WITH EXTREME CARE, DATA LOSS MAY OCCUR, NO WARRANTY!**
 
 ## Inspired by
 
@@ -76,7 +76,7 @@ GPLv3
 
 ## Naming
 
-purely arbitrarily by running `apg -m 5`
+... purely arbitrarily by running `apg -m 5`
 
 ## Contact
 
