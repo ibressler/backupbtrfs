@@ -5,6 +5,13 @@ Creates bootable, rolling snapshots of btrfs root filesystems on suspend/powerdo
 ## Contents
 
 [Requirements & Assumptions](#requirements--assumptions)
+[Bootable Snapshots](#bootable-snapshots)
+[Removing Outdated Snapshots](#removing-outdated-snapshots)
+[Tested on](#tested-on)
+[Inspired by](#inspired-by)
+[License](#license)
+[Naming](#naming)
+[Contact](#contact)
 
 ## Requirements & Assumptions
 
@@ -45,7 +52,7 @@ On successive runs of `makesnapshot.sh` it first removes outdated snapshots.
 In order to accomplish this it extracts the time stamp of all existing snapshots and compares them
 with a reference date, by default 30 days ago. If a snapshot is older it is removed by `btrfs subvolume delete`.
 
-# Tested on
+## Tested on
 
 Works for the author on Ubuntu 14.04 with / and /home on different filesystems/devices and by mounting them via `subvol=@` and `subvol=@home` respectively.
 
@@ -59,19 +66,19 @@ UUID=cc-dd-ee /run/btrfs-home btrfs   defaults,<more opts>,noauto        0   1
 
 USE WITH EXTREME CARE, DATA LOSS MAY OCCUR, NO WARRANTY!
 
-# Inspired by
+## Inspired by
 
 https://wiki.archlinux.org/index.php/Btrfs_-_Tips_and_tricks
 
-# License
+## License
 
 GPLv3
 
-# Naming
+## Naming
 
 purely arbitrarily by running `apg -m 5`
 
-# Contact
+## Contact
 
 Feel free to contact me for any comments, feedback or critics!
 
