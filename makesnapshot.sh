@@ -11,7 +11,7 @@
 # modifed 2015-06, Ingo Bressler <dev@ingobressler.net>
 #
 # Works for the author on Ubuntu 14.04.
-# USED WITH EXTREME CARE, DATA LOSS MAY OCCUR, NO WARRANTY!
+# USE WITH EXTREME CARE, DATA LOSS MAY OCCUR, NO WARRANTY!
 # License: GPLv3
 #
 # example call:
