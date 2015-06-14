@@ -4,21 +4,14 @@ Creates bootable, rolling snapshots of btrfs root filesystems on suspend/powerdo
 
 ## Contents
 
-[Requirements & Assumptions](#requirements--assumptions)
-
-[Bootable Snapshots](#bootable-snapshots)
-
-[Removing Outdated Snapshots](#removing-outdated-snapshots)
-
-[Tested on](#tested-on)
-
-[Inspired by](#inspired-by)
-
-[License](#license)
-
-[Naming](#naming)
-
-[Contact](#contact)
+1. [Requirements & Assumptions](#requirements--assumptions)
+2. [Bootable Snapshots](#bootable-snapshots)
+3. [Removing Outdated Snapshots](#removing-outdated-snapshots)
+4. [Tested on](#tested-on)
+5. [Inspired by](#inspired-by)
+6. [License](#license)
+7. [Naming](#naming)
+8. [Contact](#contact)
 
 ## Requirements & Assumptions
 
