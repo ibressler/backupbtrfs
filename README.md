@@ -65,6 +65,8 @@ The snapshot script is run in a xterm window to show the terminal output which i
 to a log file `/var/log/snapshot.log` separately.
 The operation finishes by closing the xterm window after another delay of 10 seconds.
 
+![Terminal Output](/media/terminal.png)
+
 It may work with any other `x-terminal-emulator` programs but adjusting the default font size
 is rather simple with an xterm which should be available on many systems anyway (as long as there is X).
 
