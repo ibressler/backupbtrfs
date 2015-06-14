@@ -14,9 +14,20 @@
 # Works for the author on Ubuntu 14.04.
 # USE WITH EXTREME CARE, DATA LOSS MAY OCCUR, NO WARRANTY!
 # License: GPLv3
-#
-# example call:
-# bash /usr/local/bin/snapshot_current_system_state.sh '/run/btrfs-root' '__current/ROOT' '__snapshot/__state_at_last_successful_boot' 
+
+# Can be provided as command line argument
+snapshot_name="${1}"  # example: 'state_at_last_successful_boot'
+root_volume_name="@"
+days_to_keep=30
+time_delta_secs=$((${days_to_keep} * 24 * 3600))
+#time_delta_secs=80 # for debugging
+timestamp_path="/SNAPSHOT-TIMESTAMP"
+this_script="${0}"
+
+GRUBCFG="/boot/grub/grub.cfg" # source for menu entry pattern
+GRUBCTM="/etc/grub.d/40_custom" # target for menu entries
+# sys command for regenerating grub menu with contents of $GRUBCTM file
+UPDATE_GRUB="/usr/sbin/update-grub"
 
 ECHO="/bin/echo"
 BTRFS="/bin/btrfs"
@@ -30,20 +41,6 @@ MKDIR="/bin/mkdir"
 GREP="/bin/grep"
 MOUNT="/bin/mount"
 UMOUNT="/bin/umount"
-GRUBCFG="/boot/grub/grub.cfg" # source for menu entry pattern
-GRUBCTM="/etc/grub.d/40_custom" # target for menu entries
-# sys command for regenerating grub menu with contents of $GRUBCTM file
-UPDATE_GRUB="/usr/sbin/update-grub"
-
-#btrfs_root="${1}"          # example: '/run/btrfs-root'
-#path_to_root_volume="${2}" # example: '__current/ROOT'
-snapshot_name="${1}"       # example: 'state_at_last_successful_boot'
-root_volume_name="@"
-days_to_keep=30
-time_delta_secs=$((${days_to_keep} * 24 * 3600))
-time_delta_secs=7000 # for debugging
-timestamp_path="/SNAPSHOT-TIMESTAMP"
-this_script="${0}"
 
 if ([ $# -gt 1 ] || [ "x$1" = "x--help" ] || [ "x$1" = "x-h" ])
 then
