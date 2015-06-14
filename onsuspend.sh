@@ -34,6 +34,7 @@ HEAD="/usr/bin/head"
 PS="/bin/ps"
 GREP="/bin/grep"
 AWK="/usr/bin/awk"
+SUDO="/usr/bin/sudo"
 
 on_abort()
 {
@@ -42,54 +43,53 @@ on_abort()
 
 on_accept()
 {
-  $ECHO "### $(date)" >> "${LOGFILE}"
-  ${TERM} ${TERMFONT} -geometry ${TERMGEOM} -title "${TERMTITLE}" -e $BASH \
-    -c "${MAKESNAPSHOT} 2>&1 | $TEE -a "${LOGFILE}"; $SLEEP $DELAYFINALLY"
+  local xuser="$1"
+  # start snapshot creation in background, has to be run as root
+  (${MAKESNAPSHOT}; $SLEEP $DELAYFINALLY) &
+  # run terminal with snapshot log output
+  # in foreground by user owning the X session
+  # the tail command within (and this function) exists when the above delay is over
+  $SUDO -u "$xuser" ${TERM} ${TERMFONT} -geometry ${TERMGEOM} \
+    -title "${TERMTITLE}" -e $BASH \
+    -c "/usr/bin/tail --pid="$!" -f ${LOGFILE}"
 }
 
-get_xsession()
+get_xuser()
 {
-  local username="$($PS --no-headers -o user,cmd -C init \
-                       | $GREP -- --user \
-                       | $AWK '{print $1}' \
-                       | $HEAD -n1)"
-  local userhome="$(/bin/su -c "$ECHO \$HOME" $username)"
-  local xauthfn="$userhome/.Xauthority"
-  if [ ! -f "${xauthfn}" ]
-  then
-    $ECHO "Xauthority not found for starting xmessage window: '${xauthfn}'!"
-    return
-  fi
-  /bin/cp "${xauthfn}" "${xauthfn_root}"
+  $PS --no-headers -o user,cmd -C init \
+    | $GREP -- --user \
+    | $AWK '{print $1}' \
+    | $HEAD -n1
 }
 
-release_xsession()
+raise_message()
 {
-  rm -f "${xauthfn_root}"
-}
-
-run()
-{
-  xauthfn_root="/root/.Xauthority"
-  get_xsession
-  if ${XMESSAGE} ${XMESSAGEOPTS} <<EOF
+  local xuser="$1"
+  $SLEEP 1 # delay is important to let the restart/suspend selector UI vanish
+  $SUDO -u "$xuser" ${XMESSAGE} ${XMESSAGEOPTS} <<EOF
 Create snapshots of current system state?
 
 Continuing in ${TIMEOUT} seconds.
 Press <enter> to abort.
 EOF
+}
+
+run()
+{
+  local xuser="$(get_xuser)"
+  $ECHO "   ### $(date)" # start new section in log file
+  if raise_message "${xuser}"
   then
-    on_accept
+    on_accept "${xuser}"
   else
     on_abort
   fi
-  release_xsession
 }
 
 # For /etc/pm/sleep.d/
 case "${1}" in
         suspend|suspend_hybrid|hibernate)
-          run
+          run >> "$LOGFILE" 2>&1
         ;;
         resume|thaw)
           # Nothing to do here

@@ -68,7 +68,7 @@ is rather simple with an xterm which should be available on many systems anyway 
 
 ## Tested on
 
-Works for the author on Ubuntu 14.04 with / and /home on different filesystems/devices and by mounting them via `subvol=@` and `subvol=@home` respectively.
+Works for the author on XUbuntu 14.04 with / and /home on different filesystems/devices and by mounting them via `subvol=@` and `subvol=@home` respectively.
 
 Example `/etc/fstab`:
 ```
