@@ -2,6 +2,10 @@
 
 Creates bootable, rolling snapshots of btrfs root filesystems on suspend/powerdown automatically
 
+## Contents
+
+[Requirements & Assumptions](#requirements--assumptions)
+
 ## Requirements & Assumptions
 
 Each invocation of `makesnapshot.sh` creates a new snapshot based on the same time stamp on all *monitored* filesystems.
