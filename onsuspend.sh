@@ -89,7 +89,7 @@ run()
 # For /etc/pm/sleep.d/
 case "${1}" in
         suspend|suspend_hybrid|hibernate)
-          run >> "$LOGFILE" 2>&1
+          run 2>&1 | $TEE -a "$LOGFILE"
         ;;
         resume|thaw)
           # Nothing to do here
