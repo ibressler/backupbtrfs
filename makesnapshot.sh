@@ -96,12 +96,11 @@ sed_escape_path()
 }
 fix_issue()
 {
-  local timestamp="${1}"
-  local name="${2}"
-  local snap_root="${3}"
+  local name="${1}"
+  local snap_root="${2}"
   local fn="${snap_root}/etc/issue"
   local text_old="$(current_issue "${fn}")"
-  local text_new="${text_old} --- snapshot ${name} [${timestamp}]"
+  local text_new="${text_old} --- snapshot ${name}"
   [ -f "${fn}" ] || return
   $SED "s/${text_old}/${text_new}/g" --in-place "${fn}"
   fn="${fn}.net" # change issue.net as well
@@ -136,7 +135,7 @@ grub_entry()
     | $SED2 "s/\/initrd/${boot_path}\/initrd/" \
     | $SED2 "s/rootflags=subvol=[^\s]+\s/rootflags=subvol=${root_path} /"
 }
-# fix_grub "${path_to_snapshots}" "${subvolume}"
+
 fix_grub()
 {
   local btrfs_root="${1}"
@@ -210,7 +209,7 @@ create_snapshot()
     then
       $ECHO "  => fixing root vol"
 
-      fix_issue "${timestamp}" "${path_to_snapshots}" "${snap_root}"
+      fix_issue "${path_to_snapshots}" "${snap_root}"
       fix_grub "${btrfs_root}"
 
       for subvolumeX in $(sed_escape_path "$subvolumes")
