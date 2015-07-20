@@ -118,7 +118,7 @@ fix_fstab()
   local snap_root="${3}"
   $ECHO "fixing fstab for '$subvolume'"
   # change all subvol= because we want to snap on all devices
-  $SED "s/subvol=${subvolume}/subvol=${snap_path}\/${subvolume}/g" \
+  $SED2 "s/subvol=${subvolume}(\s)/subvol=${snap_path}\/${subvolume}\1/g" \
         --in-place "${snap_root}/etc/fstab"
   # http://stackoverflow.com/a/11958566
   # "/subvol=${subvolume}[,[:space:]]/ s/subvol=${subvolume}/subvol=${snap_path}\/${subvolume}/g" \
