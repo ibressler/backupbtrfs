@@ -153,6 +153,10 @@ fix_grub()
   do
     local snap_name="$(dirname "${subvolume}")"
     local root_path="/${subvolume}"
+    # process root subvolumes only
+    if [ "x${snap_name}/${root_volume_name}x" != "x${subvolume}x" ]; then
+      continue
+    fi;
     grub_entry "${snap_name}" "${root_path}" >> "${tempfn}"
   done
   $ECHO "}" >> "${tempfn}"
@@ -209,7 +213,7 @@ create_snapshot()
 
     if [ "${subvolume}" = "${root_volume_name}" ]
     then
-      $ECHO "  => fixing root vol"
+      $ECHO "  => preparing root subvolumes for boot"
 
       fix_issue "${path_to_snapshots}" "${snap_root}"
       fix_grub "${btrfs_root}"
