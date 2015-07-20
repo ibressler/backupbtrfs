@@ -230,7 +230,12 @@ create_snapshot()
 # root volume of the actually used 'subvol='
 get_roots()
 {
-  $GREP -E '\sbtrfs\s' /etc/fstab | awk '{print $2}' | grep '^/run/btrfs-'
+  # ignore comments, get btrfs fs type only,
+  # get mount points starting with /run/btrfs-
+  $GREP -Ev '^\s*#' /etc/fstab \
+    | $GREP -E '\sbtrfs\s' \
+    | awk '{print $2}' \
+    | grep '^/run/btrfs-'
 }
 
 create_snapshots()
