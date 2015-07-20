@@ -41,6 +41,7 @@ MKDIR="/bin/mkdir"
 GREP="/bin/grep"
 MOUNT="/bin/mount"
 UMOUNT="/bin/umount"
+SORT="/usr/bin/sort"
 
 if ([ $# -gt 1 ] || [ "x$1" = "x--help" ] || [ "x$1" = "x-h" ])
 then
@@ -65,6 +66,8 @@ then
   exit 0
 fi
 
+# returns a list of subvolume names for the given btrfs mount point
+# lexicographically inverse sorted: most recent timestamps first
 get_subvolumes()
 {
   local btrfs_root="${1}"
@@ -72,7 +75,8 @@ get_subvolumes()
   [ "${2}" != "parent" ] && invert="-v"
   $ECHO -n "$(btrfs subvolume list -q "${btrfs_root}" | \
                 $GREP ${invert} 'parent_uuid -' | \
-                $AWK '{print $NF}')"
+                $AWK '{print $NF}' | \
+                $SORT -r)"
 }
 get_timestamp()
 {
