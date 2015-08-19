@@ -166,7 +166,7 @@ fix_grub()
 }
 # if xmessage -center -default yes -buttons yes:0,no:1 sdfdsafdsafsd; then echo true; else echo false; fi
 
-# remove existing snapshots, NOT YET
+# remove existing snapshots
 remove_old_snaps()
 {
   local btrfs_root="${1}"
@@ -183,7 +183,7 @@ remove_old_snaps()
       continue
     fi
     local ts="$(cat "${snap_ts_path}")"
-    [ -z "$ts" ] && continue # not timestamp found
+    [ -z "$ts" ] && continue # no timestamp found
     if [ "${ts}" \> "${timestamp_ref}" ];
     then
       $ECHO "keep [${ts}]"
