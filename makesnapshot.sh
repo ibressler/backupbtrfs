@@ -203,6 +203,16 @@ remove_old_snaps()
   done
 }
 
+get_timestamp()
+{
+  local path_to_snapshot="${1}"
+  local ts_path="${path_to_snapshot}${timestamp_path}"
+  if [ ! -f "${ts_path}" ]; then
+    local ts_path=""
+  fi
+  $ECHO "$ts_path"
+}
+
 # get existing snapshots candidates for removal
 find_old_snaps()
 {
