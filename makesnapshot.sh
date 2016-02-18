@@ -227,7 +227,7 @@ find_old_snaps()
     fi
     local ts="$(cat "${snap_ts_path}")"
     [ -z "$ts" ] && continue # timestamp empty
-    $ECHO "$ts ${path_to_snapshot} bla"
+    $ECHO "$ts ${path_to_snapshot}"
   done
 }
 
