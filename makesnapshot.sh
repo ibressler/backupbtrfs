@@ -258,8 +258,8 @@ get_roots()
   # get mount points starting with /run/btrfs-
   $GREP -Ev '^\s*#' /etc/fstab \
     | $GREP -E '\sbtrfs\s' \
-    | awk '{print $2}' \
-    | grep '^/run/btrfs-'
+    | $GREP -v 'subvol=' \
+    | awk '{print $2}'
 }
 
 create_snapshots()
@@ -274,6 +274,7 @@ create_snapshots()
   local path_to_snapshots="@${snapshot_name}"
   for btrfs_root in $(get_roots);
   do
+    btrfs_root="${btrfs_root%/}" # remove trailing / if any
     [ -d "${btrfs_root}" ] || $MKDIR "${btrfs_root}"
     $MOUNT "${btrfs_root}"
     remove_old_snaps "${btrfs_root}"
