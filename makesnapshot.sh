@@ -21,6 +21,8 @@ root_volume_name="@"
 days_to_keep=30
 time_delta_secs=$((${days_to_keep} * 24 * 3600))
 #time_delta_secs=80 # for debugging
+# minimum number of snapshots to keep, irrespective of the timestamp
+count_to_keep=3
 timestamp_path="/SNAPSHOT-TIMESTAMP"
 this_script="${0}"
 
@@ -42,6 +44,7 @@ GREP="/bin/grep"
 MOUNT="/bin/mount"
 UMOUNT="/bin/umount"
 SORT="/usr/bin/sort"
+UNIQ="/usr/bin/uniq"
 
 if ([ $# -gt 1 ] || [ "x$1" = "x--help" ] || [ "x$1" = "x-h" ])
 then
@@ -171,27 +174,48 @@ remove_old_snaps()
 {
   local btrfs_root="${1}"
   local timestamp_ref="$(get_timestamp ${time_delta_secs})"
-  $ECHO "Keeping snapshots of $btrfs_root up to $timestamp_ref"
+  # get a list of time stamps to be removed:
+  # get a sorted list of unique time stamps, newest last,
+  # skip the newest $count_to_keep
+  # get those older as the reference time stamp $timestamp_ref
+  ts_remove=$(find_old_snaps "${btrfs_root}" \
+    | $AWK '{print $1}' | $UNIQ | $SORT | head -n -"$count_to_keep" \
+    | $AWK -v ref="$timestamp_ref" '{ if ($1 < ref) print $1 }')
+  [ -z "$ts_remove" ] && return
+  $ECHO "Keeping snapshots of $btrfs_root up to $timestamp_ref,"\
+        "at least $count_to_keep:"
+  local IFS=$'
+'
+  for candidate in $(find_old_snaps "${btrfs_root}")
+  do
+    local ts="${candidate%% /*}"
+    local path_to_snapshot="/${candidate#*/}"
+    if ! $ECHO "$ts_remove" | $GREP -q "$ts"
+    then
+      $ECHO "  Keeping  [${ts}] '${path_to_snapshot}'"
+      continue
+    fi
+    $ECHO "  Removing [${ts}] '${path_to_snapshot}'"
+    $BTRFS subvolume delete -C "${path_to_snapshot}"
+    rmdir --ignore-fail-on-non-empty "$(dirname ${path_to_snapshot})"
+  done
+}
+
+# get existing snapshots candidates for removal
+find_old_snaps()
+{
+  local btrfs_root="${1}"
   for subvolume in $(get_subvolumes "${btrfs_root}" noparent) # scan
   do
     local path_to_snapshot="${btrfs_root}/${subvolume}"
     [ -d "${path_to_snapshot}" ] || continue
-    $ECHO -n "Testing for removal of '${path_to_snapshot}' ... "
     local snap_ts_path="${path_to_snapshot}${timestamp_path}"
     if [ ! -f "${snap_ts_path}" ]; then
-      $ECHO "skipped."
-      continue
+      continue # no stored timestamp found, skipped
     fi
     local ts="$(cat "${snap_ts_path}")"
-    [ -z "$ts" ] && continue # no timestamp found
-    if [ "${ts}" \> "${timestamp_ref}" ];
-    then
-      $ECHO "keep [${ts}]"
-      continue
-    fi
-    $ECHO "remove [${ts}]"
-    $BTRFS subvolume delete -C "${path_to_snapshot}"
-    rmdir --ignore-fail-on-non-empty "$(dirname ${path_to_snapshot})"
+    [ -z "$ts" ] && continue # timestamp empty
+    $ECHO "$ts ${path_to_snapshot} bla"
   done
 }
 
