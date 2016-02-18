@@ -105,13 +105,14 @@ fix_issue()
   local snap_root="${2}"
   local fn="${snap_root}/etc/issue"
   local text_old="$(current_issue "${fn}")"
-  local text_new="${text_old} --- snapshot ${name}"
+  local text_suffix=" --- snapshot ${name}"
   [ -f "${fn}" ] || return
-  $SED "s/${text_old}/${text_new}/g" --in-place "${fn}"
+  sedcmd="$SED2 's/^(${text_old})(\\s+\\S+\\s+snapshot\\s+\\S+)*(.*)\$/\\1${text_suffix}\\3/g' --in-place"
+  eval "$sedcmd" "'${fn}'"
   fn="${fn}.net" # change issue.net as well
   if [ -f "${fn}" ];
   then
-    $SED "s/${text_old}/${text_new}/g" --in-place "${fn}"
+    eval "$sedcmd" "'${fn}'"
   fi
 }
 fix_fstab()
