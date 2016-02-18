@@ -74,12 +74,14 @@ fi
 get_subvolumes()
 {
   local btrfs_root="${1}"
-  local invert=""
-  [ "${2}" != "parent" ] && invert="-v"
-  $ECHO -n "$(btrfs subvolume list -q "${btrfs_root}" | \
-                $GREP ${invert} 'parent_uuid -' | \
-                $AWK '{print $NF}' | \
-                $SORT -r)"
+  btrfs subvolume list -q "${btrfs_root}" | \
+  case "${2}" in
+    parent)   $GREP 'parent_uuid -' ;;
+    noparent) $GREP -v 'parent_uuid -' ;;
+    *)        $GREP '' ;;
+  esac | \
+    $AWK '{print $NF}' | \
+    $SORT -r
 }
 format_timestamp()
 {
