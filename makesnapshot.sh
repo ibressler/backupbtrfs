@@ -237,31 +237,36 @@ find_old_snaps()
 create_snapshot()
 {
   local btrfs_root="${1}"
-  local subvolumes="$(get_subvolumes "${btrfs_root}" parent)"
+  local subvolumes="$(get_subvolumes "${btrfs_root}")"
+  local IFS=$'
+'
   for subvolume in $subvolumes
   do
+    local path_to_subvol="${btrfs_root}/${subvolume}"
+    if [ -f "$(get_timestamp "$path_to_subvol")" ]; then
+      continue
+    fi
     $ECHO "processing '$subvolume' ..."
     local snap_dir="${btrfs_root}/${path_to_snapshots}/$($DIRNAME ${subvolume})"
     $MKDIR -p "${snap_dir}"
 
     local snap_root="${btrfs_root}/${path_to_snapshots}/${subvolume}"
-    $BTRFS subvolume snapshot \
-      "${btrfs_root}/${subvolume}" "${snap_root}"
+    $BTRFS subvolume snapshot "${path_to_subvol}" "${snap_root}"
     # add timestamp file to snapshot for removing outdated ones next time
     $ECHO "${timestamp}" > "${snap_root}${timestamp_path}"
 
-    if [ "${subvolume}" = "${root_volume_name}" ]
-    then
-      $ECHO "  => preparing root subvolumes for boot"
-
-      fix_issue "${path_to_snapshots}" "${snap_root}"
-      fix_grub "${btrfs_root}"
-
-      for subvolumeX in $(sed_escape_path "$subvolumes")
-      do
-        fix_fstab "${path_to_snapshots}" "${subvolumeX}" "${snap_root}"
-      done
+    if [ "${subvolume}" != "${root_volume_name}" ]; then
+      continue
     fi
+    $ECHO "  => preparing root subvolumes for boot"
+
+    fix_issue "${path_to_snapshots}" "${snap_root}"
+    fix_grub "${btrfs_root}"
+
+    for subvolumeX in $(sed_escape_path "$subvolumes")
+    do
+      fix_fstab "${path_to_snapshots}" "${subvolumeX}" "${snap_root}"
+    done
   done
 }
 
