@@ -81,7 +81,7 @@ get_subvolumes()
                 $AWK '{print $NF}' | \
                 $SORT -r)"
 }
-get_timestamp()
+format_timestamp()
 {
   local delta="${1}" # seconds earlier than now
   if [ ! -z "$delta" ]; then
@@ -173,7 +173,7 @@ fix_grub()
 remove_old_snaps()
 {
   local btrfs_root="${1}"
-  local timestamp_ref="$(get_timestamp ${time_delta_secs})"
+  local timestamp_ref="$(format_timestamp ${time_delta_secs})"
   # get a list of time stamps to be removed:
   # get a sorted list of unique time stamps, newest last,
   # skip the newest $count_to_keep
@@ -264,7 +264,7 @@ get_roots()
 
 create_snapshots()
 {
-  local timestamp="$(get_timestamp)"
+  local timestamp="$(format_timestamp)"
   local snapshot_name="${1}"
   if [ -z "${snapshot_name}" ]; then
     snapshot_name="${timestamp}"
