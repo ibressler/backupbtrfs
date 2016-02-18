@@ -121,6 +121,10 @@ fix_fstab()
   local snap_path="$(sed_escape_path "${1}")"
   local subvolume="${2}"
   local snap_root="${3}"
+  if $ECHO $subvolume | grep -q "^${snap_path}"; then
+    # abort on subvolumes of the snapshot series just created, for testing basically
+    return
+  fi
   $ECHO "fixing fstab for '$subvolume'"
   # change all subvol= because we want to snap on all devices
   $SED -r "s/subvol=${subvolume}(\s)/subvol=${snap_path}\/${subvolume}\1/g" \
