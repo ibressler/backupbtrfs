@@ -44,6 +44,7 @@ MOUNT="/bin/mount"
 UMOUNT="/bin/umount"
 SORT="/usr/bin/sort"
 UNIQ="/usr/bin/uniq"
+CHKSUM="/usr/bin/sha1sum"
 
 if ([ $# -gt 1 ] || [ "x$1" = "x--help" ] || [ "x$1" = "x-h" ])
 then
@@ -125,10 +126,15 @@ fix_fstab()
     # abort on subvolumes of the snapshot series just created, for testing basically
     return
   fi
-  $ECHO "fixing fstab for '$subvolume'"
+  local fstabpath="${snap_root}/etc/fstab"
+  [ -f "$fstabpath" ] || return
+  local chksum=$($CHKSUM "$fstabpath" | awk '{print $1}')
   # change all subvol= because we want to snap on all devices
   $SED -r "s/subvol=${subvolume}(\s)/subvol=${snap_path}\/${subvolume}\1/g" \
         --in-place "${snap_root}/etc/fstab"
+  if [ "$($CHKSUM "$fstabpath" | awk '{print $1}')" != "$chksum" ]; then
+    $ECHO "Fixed fstab for '$subvolume'"
+  fi
   # http://stackoverflow.com/a/11958566
   # "/subvol=${subvolume}[,[:space:]]/ s/subvol=${subvolume}/subvol=${snap_path}\/${subvolume}/g" \
 }
