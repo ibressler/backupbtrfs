@@ -224,9 +224,8 @@ find_old_snaps()
   for subvolume in $(get_subvolumes "${btrfs_root}" noparent) # scan
   do
     local path_to_snapshot="${btrfs_root}/${subvolume}"
-    [ -d "${path_to_snapshot}" ] || continue
-    local snap_ts_path="${path_to_snapshot}${timestamp_path}"
-    if [ ! -f "${snap_ts_path}" ]; then
+    local snap_ts_path="$(get_timestamp "${path_to_snapshot}")"
+    if [ ! -f "$snap_ts_path" ]; then
       continue # no stored timestamp found, skipped
     fi
     local ts="$(cat "${snap_ts_path}")"
