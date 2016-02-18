@@ -34,8 +34,7 @@ UPDATE_GRUB="/usr/sbin/update-grub"
 ECHO="/bin/echo"
 BTRFS="/bin/btrfs"
 AWK="/usr/bin/awk"
-SED="/bin/sed --posix --regexp-extended"
-SED2="/bin/sed --regexp-extended"
+SED="/bin/sed"
 DIRNAME="/usr/bin/dirname"
 DATE="/bin/date"
 SYNC="/bin/sync"
@@ -99,7 +98,7 @@ current_issue()
 sed_escape_path()
 {
   local inpath="${1}"
-  $ECHO "${inpath}" | $SED 's/\//\\\//g'
+  $ECHO "${inpath}" | $SED -r 's#/#\\/#g'
 }
 fix_issue()
 {
@@ -109,7 +108,7 @@ fix_issue()
   local text_old="$(current_issue "${fn}")"
   local text_suffix=" --- snapshot ${name}"
   [ -f "${fn}" ] || return
-  sedcmd="$SED2 's/^(${text_old})(\\s+\\S+\\s+snapshot\\s+\\S+)*(.*)\$/\\1${text_suffix}\\3/g' --in-place"
+  sedcmd="$SED -r 's/^(${text_old})(\\s+\\S+\\s+snapshot\\s+\\S+)*(.*)\$/\\1${text_suffix}\\3/g' --in-place"
   eval "$sedcmd" "'${fn}'"
   fn="${fn}.net" # change issue.net as well
   if [ -f "${fn}" ];
@@ -124,7 +123,7 @@ fix_fstab()
   local snap_root="${3}"
   $ECHO "fixing fstab for '$subvolume'"
   # change all subvol= because we want to snap on all devices
-  $SED2 "s/subvol=${subvolume}(\s)/subvol=${snap_path}\/${subvolume}\1/g" \
+  $SED -r "s/subvol=${subvolume}(\s)/subvol=${snap_path}\/${subvolume}\1/g" \
         --in-place "${snap_root}/etc/fstab"
   # http://stackoverflow.com/a/11958566
   # "/subvol=${subvolume}[,[:space:]]/ s/subvol=${subvolume}/subvol=${snap_path}\/${subvolume}/g" \
@@ -137,11 +136,11 @@ grub_entry()
   # grab the main entry of grub.cfg in /boot and modify it to our needs
   # pay attention to not get previously generated entries containing @ or _
   $GREP -aozP '(?s)menuentry[^{]+gnulinux-simple[^{@_]+{[^}]+}' "${GRUBCFG}" \
-    | $SED2 "s/'(\w+)'/'\1 [${snap_name}]'/" \
-    | $SED2 "s/(gnulinux-simple-[^']+)/\1-${snap_name}/" \
-    | $SED2 "s/\/vmlinuz/${boot_path}\/vmlinuz/" \
-    | $SED2 "s/\/initrd/${boot_path}\/initrd/" \
-    | $SED2 "s/rootflags=subvol=[^\s]+\s/rootflags=subvol=${root_path} /"
+    | $SED -r "s/'(\\w+)'/'\\1 [${snap_name}]'/" \
+    | $SED -r "s/(gnulinux-simple-[^']+)/\\1-${snap_name}/" \
+    | $SED -r "s/\\/vmlinuz/${boot_path}\\/vmlinuz/" \
+    | $SED -r "s/\\/initrd/${boot_path}\\/initrd/" \
+    | $SED -r "s/rootflags=subvol=[^\\s]+\\s/rootflags=subvol=${root_path} /"
 }
 
 fix_grub()
