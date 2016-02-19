@@ -16,7 +16,6 @@
 # License: GPLv3
 
 # Can be provided as command line argument
-snapshot_name="${1}"  # example: 'state_at_last_successful_boot'
 root_volume_name="@"
 days_to_keep=30
 time_delta_secs=$((${days_to_keep} * 24 * 3600))
@@ -45,17 +44,6 @@ UMOUNT="/bin/umount"
 SORT="/usr/bin/sort"
 UNIQ="/usr/bin/uniq"
 CHKSUM="/usr/bin/sha1sum"
-
-if ([ $# -gt 1 ] || [ "x$1" = "x--help" ] || [ "x$1" = "x-h" ])
-then
-  $ECHO "This script accepts one optional parameter:"
-  $ECHO "  A descriptive name which is appended to the timestamp"
-  $ECHO "  to make up for an improved snapshot name."
-  $ECHO "CAUTION: This script deletes outdated snapshots older"
-  $ECHO "         than $days_to_keep days and updates the grub configuration"
-  $ECHO "         in order to allow booting into each managed snapshot."
-  exit 0
-fi
 
 if [ "x$(whoami)" != "xroot" ]
 then
@@ -185,17 +173,20 @@ fix_grub()
 remove_old_snaps()
 {
   local btrfs_root="${1}"
-  local timestamp_ref="$(format_timestamp ${time_delta_secs})"
-  # get a list of time stamps to be removed:
-  # get a sorted list of unique time stamps, newest last,
-  # skip the newest $count_to_keep
-  # get those older as the reference time stamp $timestamp_ref
-  ts_remove=$(find_old_snaps "${btrfs_root}" \
-    | $AWK '{print $1}' | $UNIQ | $SORT | head -n -"$count_to_keep" \
-    | $AWK -v ref="$timestamp_ref" '{ if ($1 < ref) print $1 }')
-  [ -z "$ts_remove" ] && return
-  $ECHO "Keeping snapshots of $btrfs_root up to $timestamp_ref,"\
-        "at least $count_to_keep:"
+  local ts_remove="${2}"
+  if [ -z "$ts_remove" ]; then
+    local timestamp_ref="$(format_timestamp ${time_delta_secs})"
+    # get a list of time stamps to be removed:
+    # get a sorted list of unique time stamps, newest last,
+    # skip the newest $count_to_keep
+    # get those older as the reference time stamp $timestamp_ref
+    local ts_remove="$(find_old_snaps "${btrfs_root}" \
+      | $AWK '{print $1}' | $UNIQ | $SORT | head -n -"$count_to_keep" \
+      | $AWK -v ref="$timestamp_ref" '{ if ($1 < ref) print $1 }')"
+    [ -z "$ts_remove" ] && return
+    $ECHO "Keeping snapshots of $btrfs_root up to $timestamp_ref,"\
+          "at least $count_to_keep:"
+  fi
   local IFS=$'
 '
   for candidate in $(find_old_snaps "${btrfs_root}")
@@ -288,6 +279,22 @@ get_roots()
     | awk '{print $2}'
 }
 
+prepare_root()
+{
+  local btrfs_root="${1}"
+  local btrfs_root="${btrfs_root%/}" # remove trailing / if any
+  [ -d "${btrfs_root}" ] || $MKDIR "${btrfs_root}"
+  $MOUNT "${btrfs_root}"
+  $ECHO "${btrfs_root}"
+}
+
+close_root()
+{
+  local btrfs_root="${1}"
+  $UMOUNT "${btrfs_root}"
+  rmdir "${btrfs_root}"
+}
+
 create_snapshots()
 {
   local timestamp="$(format_timestamp)"
@@ -300,17 +307,60 @@ create_snapshots()
   local path_to_snapshots="@${snapshot_name}"
   for btrfs_root in $(get_roots);
   do
-    btrfs_root="${btrfs_root%/}" # remove trailing / if any
-    [ -d "${btrfs_root}" ] || $MKDIR "${btrfs_root}"
-    $MOUNT "${btrfs_root}"
+    local btrfs_root="$(prepare_root "${btrfs_root}")"
     remove_old_snaps "${btrfs_root}"
-    create_snapshot "${btrfs_root}"
-    $UMOUNT "${btrfs_root}"
-    rmdir "${btrfs_root}"
+#    create_snapshot "${btrfs_root}"
+    continue
+    close_root "${btrfs_root}"
   done
 }
 
-create_snapshots "${snapshot_name}"
+usage_make()
+{
+  $ECHO "This script accepts one optional parameter:"
+  $ECHO "  A descriptive name which is appended to the timestamp"
+  $ECHO "  to make up for an improved snapshot name."
+  $ECHO "CAUTION: This script deletes outdated snapshots older"
+  $ECHO "         than $days_to_keep days and updates the grub configuration"
+  $ECHO "         in order to allow booting into each managed snapshot."
+  exit 1
+}
+
+usage_remove()
+{
+  $ECHO "This script removes all snapshots with a given timestamp from the "
+  $ECHO "given btrfs root volume."
+  $ECHO "usage: "
+  $ECHO "  $script_name <btrfs root mount point> <YYYY-mm-dd_HHMMSS>"
+  exit 1
+}
+
+main()
+{
+  script_name="$(basename "$this_script")"
+  script_name="${script_name%*.sh}"
+  echo "test: '$script_name'"
+  case "$script_name" in
+    makesnapshot)
+      if ([ $# -gt 1 ] || [ "x$1" = "x--help" ] || [ "x$1" = "x-h" ]); then
+        usage_make
+      fi
+      local snapshot_name="${1}" # ex.: 'state_at_last_successful_boot'
+      create_snapshots "${snapshot_name}"
+    ;;
+    removesnapshot)
+      if [ -z "${1}" ] || [ -z "${2}" ]; then
+        usage_remove
+      fi
+      local btrfs_root="$(prepare_root "${1}")"
+      local timestamp="${2}" # ex.: YYYY-mm-dd_HHMMSS
+      remove_old_snaps "${btrfs_root}" "${timestamp}"
+      #close_root "${btrfs_root}"
+    ;;
+  esac
+}
+
+main $@
 
 $SYNC
 
