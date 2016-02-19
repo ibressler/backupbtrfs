@@ -309,7 +309,7 @@ create_snapshots()
   do
     local btrfs_root="$(prepare_root "${btrfs_root}")"
     remove_old_snaps "${btrfs_root}"
-#    create_snapshot "${btrfs_root}"
+    create_snapshot "${btrfs_root}"
     continue
     close_root "${btrfs_root}"
   done
