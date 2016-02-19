@@ -65,7 +65,6 @@ get_xuser()
 raise_message()
 {
   local xuser="$1"
-  $SLEEP 1 # delay is important to let the restart/suspend selector UI vanish
   $SUDO -u "$xuser" ${XMESSAGE} ${XMESSAGEOPTS} <<EOF
 Create snapshots of current system state?
 
@@ -89,6 +88,7 @@ run()
 # For /etc/pm/sleep.d/
 case "${1}" in
         suspend|suspend_hybrid|hibernate)
+          $SLEEP 1 # delay is important to let the restart/suspend selector UI vanish
           run 2>&1 | $TEE -a "$LOGFILE"
         ;;
         resume|thaw)
