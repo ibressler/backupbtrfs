@@ -23,6 +23,7 @@ time_delta_secs=$((${days_to_keep} * 24 * 3600))
 # minimum number of snapshots to keep, irrespective of the timestamp
 count_to_keep=3
 timestamp_path="/SNAPSHOT-TIMESTAMP"
+timestamp_fmt="%Y-%m-%d_%H%M%S"
 this_script="${0}"
 
 GRUBCFG="/boot/grub/grub.cfg" # source for menu entry pattern
@@ -77,7 +78,7 @@ format_timestamp()
   if [ ! -z "$delta" ]; then
     delta="--date=@$(($($DATE +%s) - $delta))"
   fi
-  echo -n "$($DATE +%Y-%m-%d_%H%M%S $delta)"
+  echo -n "$($DATE "+${timestamp_fmt}" $delta)"
 }
 current_issue()
 {
