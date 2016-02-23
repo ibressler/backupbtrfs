@@ -13,11 +13,40 @@ udev_rule="/etc/udev/rules.d/99-backup-storage.rules"
 LOGFILE="/var/log/onudevadd.log"
 
 ECHO="/bin/echo"
+BTRFS="/bin/btrfs"
+MKDIR="/bin/mkdir"
+RMDIR="/bin/rmdir"
+DATE="/bin/date"
 WHOAMI="/usr/bin/whoami"
 UDEVADM="/sbin/udevadm"
 AWK="/usr/bin/awk"
 GREP="/bin/grep"
 TEE="/usr/bin/tee"
+
+MOUNT="/bin/mount"
+UMOUNT="/bin/umount"
+SLEEP="/bin/sleep"
+HEAD="/usr/bin/head"
+PS="/bin/ps"
+LS="/bin/ls"
+WC="/usr/bin/wc"
+MKTEMP="/bin/mktemp"
+
+TERM="/usr/bin/xterm"
+DISPLAY=":0"
+TERMFONT="-fa Monospace -fs 10 -display ${DISPLAY}"
+TERMGEOM="120x20+300+300"
+TERMTITLE="Backup storage connected ..."
+
+EXIT_DELAY=5 # wait a moment to let the user read log messages
+
+XHOST="/usr/bin/xhost"
+SUDO="/usr/bin/sudo"
+
+TRUECRYPT="/usr/bin/truecrypt"
+TC_FS="btrfs"
+TC_FS_OPTS="defaults,noauto,noatime,nodiratime,compress-force=lzo"
+HDPARM="/sbin/hdparm"
 
 check_su()
 {
@@ -44,9 +73,28 @@ The following commands are defined:
   on_add
     Actually starts some <action> when the device specified by the
     'install' command is connected.
-    For these actions, superuser permissions are required (to be run by udev).
+    Mounts the device or the first partition, if found, via truecrypt using
+    the file system '$TC_FS' with the following options:
+    '$TC_FS_OPTS'.
+For these actions, superuser permissions are required (to be run by udev).
 EOF
   exit 1
+}
+
+SIMULATE=0
+# modify global settings
+if [ "$SIMULATE" -eq 1 ]; then
+  MKTEMP="$MKTEMP -u"
+fi
+
+sim()
+{
+  if [ "$SIMULATE" -eq "1" -o "x${1}x" != x1x ]; then
+    $ECHO "$@"
+  else
+    $@
+  fi
+  return $?
 }
 
 install()
@@ -55,12 +103,12 @@ install()
     $ECHO "Can not install, $UDEVADM not found!"
     return
   fi
-  dev_name="$1"
-  if [ ! -b "$dev_name" ]; then
-    $ECHO "Can not install, provided device is not a block device! ('$dev_name')"
+  local devname="$1"
+  if [ ! -b "$devname" ]; then
+    $ECHO "Can not install, provided device is not a block device! ('$devname')"
     return
   fi
-  serial="$($UDEVADM info --name "$dev_name" | \
+  serial="$($UDEVADM info --name "$devname" | \
             $GREP 'ID_SERIAL_SHORT=' | \
             $AWK -F'=' '{print $2}')"
   # wildcard: ATTRS{idVendor}=="****", ATTRS{idProduct}=="****",'\
@@ -74,41 +122,6 @@ install()
   chmod 644 "$udev_rule"
   [ -x "$UDEVADM" ] && "$UDEVADM" control --reload-rules
 }
-
-mount()
-{
-  $ECHO mount
-}
-
-umount()
-{
-  $ECHO umount
-}
-
-do_backup()
-{
-  $ECHO do_backup
-}
-
-MOUNT="/bin/mount"
-UMOUNT="/bin/umount"
-SLEEP="/bin/sleep"
-HEAD="/usr/bin/head"
-PS="/bin/ps"
-
-TERM="/usr/bin/xterm"
-DISPLAY=":0"
-TERMFONT="-fa Monospace -fs 10 -display ${DISPLAY}"
-TERMGEOM="120x20+300+300"
-TERMTITLE="Creating snapshots ..."
-#  $SUDO -u "$xuser" ${TERM} ${TERMFONT} -geometry ${TERMGEOM} \
-#    -title "${TERMTITLE}" -e $BASH \
-#    -c "/usr/bin/tail --pid="$!" -f ${LOGFILE}"
-
-DELAY_EXIT=5 # wait a moment to let the user read log messages
-
-XHOST="/usr/bin/xhost"
-SUDO="/usr/bin/sudo"
 
 get_xuser()
 {
@@ -136,26 +149,150 @@ on_exit()
 {
   xhost_remove_user root
   $ECHO "Log output was written to '$LOGFILE'."
-  #$SLEEP $DELAY_EXIT
+  #$SLEEP $EXIT_DELAY
   read -p "Press return to close this window ..." dummy
   $ECHO # line break
   exit $@
 }
 
+get_partition() 
+{
+  local devname="$1"
+  [ -b "$devname" ] || return
+  local count="$($LS -1 "$devname"* | $WC -l)"
+  if [ "$count" -lt 2 ]; then
+    $ECHO "$devname"
+    return
+  fi
+  local part="$($LS -1 "$devname"* | $GREP -v "$devname$" | $HEAD -n1)"
+  if [ -b "$part" ]; then
+    $ECHO "$part"
+  fi
+}
+
+mount_or_umount()
+{
+  local cmd="$1"
+  local devname="$2"
+  local mountpoint="$3"
+  local mountpart="$(get_partition "$devname")"
+  [ -b "$mountpart" ] || return
+  case "$cmd" in
+    mount) 
+      sim $TRUECRYPT -t --protect-hidden=no --keyfiles= --filesystem="$TC_FS" \
+        --fs-options="$TC_FS_OPTS" \
+        --mount "$mountpart" "$mountpoint" 2>&1
+      ;;
+    umount)
+      # unmount and put drive to sleep via hdparm -Y
+      # (avoids emergency stop at hot-unplug)
+      sim $TRUECRYPT -t -d "$mountpart" 2>&1 && [ -x "$HDPARM" ] && sim $HDPARM -Y "$devname"
+      ;;
+  esac
+}
+
+format_elapsed_secs()
+{
+  local elapsed="$1"
+  local hours="$(($elapsed/3600))"
+  local min="$((($elapsed-($hours*3600))/60))"
+  local secs="$(($elapsed-($hours*3600)-($min*60)))"
+  $ECHO "${hours}h ${min}m ${secs}s"
+}
+
+# local mount point under which the timestamp directories for each backup can
+# be found; it is expected to be configured in /etc/fstab
+BACKUP_SOURCE="/mnt/root"
+
+do_backup()
+{
+  $ECHO do_backup $@
+  local dest="$1"
+  local src="$2"
+  [ -d "$dest" ] || return
+  [ -z "$src" ] && return
+  # get the name of the previous snapshot on external storage
+  # assuming alpha numerical sorting, inversed order: newest on top
+  local prev="$(cd "$dest" && $LS -1r | \
+                              $GREP -E '^@[0-9]+' | \
+                              $HEAD -n1 | \
+                              $AWK -F'@' '{print $2}')" # strip leading @
+  if [ -z "$prev" ]; then
+    $ECHO "Previous snapshot name not found!"
+    return
+  fi
+  echo prev $prev
+  # create source mount point if necessary
+  [ -d "$src" ] || sim $MKDIR "$src"
+  if ! $MOUNT | $GREP -q " $src "; then
+    # mount source if not already mounted, expected to be in /etc/fstab
+    $ECHO "Mounting '$src' ..."
+    sim $MOUNT "$src"
+  fi
+  # in order to get the next snapshot name, find the previous one in the
+  # source directory and chose the one above, assuming alnum sorting
+  # (see above)
+  local next="$(cd "$src" && $LS -1r | \
+                             $GREP -B1 "$prev" | \
+                             $HEAD -n1 | \
+                             $AWK -F'@' '{print $2}')" # strip leading @
+  if [ -z "$next" ]; then
+    $ECHO "Next snapshot name not found!"
+    return
+  fi
+  echo next "$next"
+  # btrfs backup, differential between $prev and $new
+  local elapsed_sum=0
+  local IFS=$'
+'
+  for subpath in $($BTRFS sub list "$src" 2>&1 | \
+                   $GREP "$next" | \
+                   $AWK -F' @' '{print $2}')
+  do
+    local subpath="@$subpath"
+    $ECHO $subpath
+    local basepath="${subpath%/*}"
+echo    $MKDIR -p "$dest/$basepath"
+echo     $BTRFS property set "$src/$subpath" ro true
+    local ts=$($DATE +%s)
+    local oldpath="$src/@$prev/${subpath#*/}"
+    if [ -d "$oldpath" ]; then
+echo "     $BTRFS send -v -p "$oldpath" "$src/$subpath" | $BTRFS rec -v "$dest/$basepath""
+    else
+echo "     $BTRFS send -v "$src/$subpath" | $BTRFS rec -v "$dest/$basepath""
+    fi
+    local elapsed="$(($($DATE +%s) - $ts))"
+    local elapsed_sum="$(($elapsed_sum + $elapsed))"
+    $ECHO " ==> done in $(format_elapsed_secs $elapsed)"
+  done
+  $ECHO " ==> Overall time: $(format_elapsed_secs $elapsed_sum)"
+}
+
 on_add()
 {
   $ECHO "=== $(date) ==="
+  [ -b "$DEVNAME" ] || DEVNAME="$1"
   if [ ! -b "$DEVNAME" ]; then
     $ECHO "Given device '$DEVNAME' not found!"
     on_exit 1 # device not found
   fi
   $SLEEP 5
-  env
+#  env
   $ECHO "Making sure the device is not mounted:"
   for dname in ${DEVNAME}*; do
     $ECHO "  Unmounting '$dname' ..."
-    $UMOUNT "$dname"
+    sim $UMOUNT "$dname"
   done
+  if [ ! -x "$TRUECRYPT" ]; then
+    $ECHO "Truecrypt binary '$TRUECRYPT' is not executable or not found!"
+    on_exit 1
+  fi
+  local mountpoint="$($MKTEMP -d --tmpdir=/mnt)"
+  mount_or_umount mount "$DEVNAME" "$mountpoint"
+  $SLEEP 1
+  do_backup "$mountpoint" "$BACKUP_SOURCE"
+  mount_or_umount umount "$DEVNAME" "$mountpoint"
+  sim $RMDIR --ignore-fail-on-non-empty "$mountpoint"
   $ECHO done
   on_exit 0
 }
@@ -177,7 +314,7 @@ run()
       nohup ${TERM} ${TERMFONT} -geometry ${TERMGEOM} \
          -title "${TERMTITLE}" \
          -e "$script_path on_add" > /dev/null 2>&1 & ;;
-    on_add) on_add ;;
+    on_add) on_add $@ ;;
   esac
 }
 
