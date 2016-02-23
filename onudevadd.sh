@@ -10,15 +10,14 @@
 # http://askubuntu.com/q/401390
 
 udev_rule="/etc/udev/rules.d/99-backup-storage.rules"
-# usb key for testing:
-vendor_id="090c"
-product_id="1000"
+LOGFILE="/var/log/onudevadd.log"
 
 ECHO="/bin/echo"
 WHOAMI="/usr/bin/whoami"
 UDEVADM="/sbin/udevadm"
 AWK="/usr/bin/awk"
 GREP="/bin/grep"
+TEE="/usr/bin/tee"
 
 check_su()
 {
@@ -32,14 +31,22 @@ check_su()
 usage_help()
 {
   cat <<EOF
-Usage: $script_name <cmd>
-  The following commands are defined:
-  install - Creates an udev rules file which calls this script when an
-            usb storage device is connected:
-            '$udev_rule'
-            Warning: it OVERWRITES an existing file with the same name!
-For these actions, superuser permissions are required.
+Usage: $script_name <cmd> <argument>
+The following commands are defined:
+  install <dev>
+    Creates an udev rules file which calls this script when the device
+    specified by <dev> (a block/usb device file in /dev/*) is connected,
+    based on its serial number:
+    '$udev_rule'
+    Warning: it OVERWRITES an existing file with the same name!
+  udev_on_add
+    Starts the 'on_add' command in background. For use in udev rules.
+  on_add
+    Actually starts some <action> when the device specified by the
+    'install' command is connected.
+    For these actions, superuser permissions are required (to be run by udev).
 EOF
+  exit 1
 }
 
 install()
@@ -61,40 +68,70 @@ install()
   rule="$($ECHO 'ACTION=="add",'\
     "ATTRS{serial}==\"$serial\","\
     'SUBSYSTEM=="block", ENV{DEVTYPE}=="disk",'\
-    "RUN+=\"$script_path onadd\"")"
-  $ECHO -e " -> adding:\n${rule}\n -> to:\n${udev_rule}"
+    "RUN+=\"$script_path udev_on_add\"")"
+  $ECHO -e "  adding:\n${rule}\n  to:\n${udev_rule}"
   $ECHO "$rule" > "$udev_rule"
   chmod 644 "$udev_rule"
   [ -x "$UDEVADM" ] && "$UDEVADM" control --reload-rules
 }
 
-onadd()
+mount()
 {
-  tmpfn="/tmp/tmpenv"
-  date >> $tmpfn
-  env >> $tmpfn
-  $ECHO >> $tmpfn
-  $ECHO tmpfn: $tmpfn
+  $ECHO mount
+}
+
+umount()
+{
+  $ECHO umount
+}
+
+do_backup()
+{
+  $ECHO do_backup
+}
+
+MOUNT="/bin/mount"
+UMOUNT="/bin/umount"
+SLEEP="/bin/sleep"
+
+on_add()
+{
+  $ECHO "=== $(date) ==="
+  [ ! -b "$DEVNAME" ] && return # device not found
+  $SLEEP 5
+  env
+  $ECHO "Making sure device is not mounted:"
+  for dname in ${DEVNAME}*; do
+    $ECHO "  Unmounting '$dname' ..."
+    $UMOUNT "$dname"
+  done
+  $ECHO done
 }
 
 run()
 {
+  if ([ $# -eq 0 ] || [ "x$1" = "x--help" ] || [ "x$1" = "x-h" ]); then
+    usage_help
+  fi
   check_su
   cmd="$1"
   shift 1
   case "$cmd" in
-    install) install $@;;
-    onadd) onadd;;
+    install) install $@ ;;
+    # let udev launch this script in background
+    # run() redirects logging internally before it vanishes in /dev/null
+    udev_on_add) nohup "$script_path" on_add > /dev/null 2>&1 & ;;
+    on_add) on_add ;;
   esac
 }
 
 script_name="$(basename "$0")"
-script_path="$(cd "$(dirname "$0")" && pwd)/$(basename "$0")"
+script_path="$(cd "$(dirname "$0")" && pwd)/$script_name"
 
-if ([ $# -eq 0 ] || [ "x$1" = "x--help" ] || [ "x$1" = "x-h" ]); then
-  usage_help
+if [ -w "$LOGFILE" ]; then
+  run "$@" 2>&1 | $TEE -a "$LOGFILE"
+else
+  run "$@" 2>&1
 fi
-
-run "$@"
 
 # vim: set ts=2 sts=2 sw=2 tw=0:
