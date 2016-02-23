@@ -93,19 +93,71 @@ do_backup()
 MOUNT="/bin/mount"
 UMOUNT="/bin/umount"
 SLEEP="/bin/sleep"
+HEAD="/usr/bin/head"
+PS="/bin/ps"
+
+TERM="/usr/bin/xterm"
+DISPLAY=":0"
+TERMFONT="-fa Monospace -fs 10 -display ${DISPLAY}"
+TERMGEOM="120x20+300+300"
+TERMTITLE="Creating snapshots ..."
+#  $SUDO -u "$xuser" ${TERM} ${TERMFONT} -geometry ${TERMGEOM} \
+#    -title "${TERMTITLE}" -e $BASH \
+#    -c "/usr/bin/tail --pid="$!" -f ${LOGFILE}"
+
+DELAY_EXIT=5 # wait a moment to let the user read log messages
+
+XHOST="/usr/bin/xhost"
+SUDO="/usr/bin/sudo"
+
+get_xuser()
+{
+  $PS --no-headers -o user,cmd -C init \
+    | $GREP -- --user \
+    | $AWK '{print $1}' \
+    | $HEAD -n1
+}
+
+xhost_add_user()
+{
+  local username="$1"
+  local xuser="$(get_xuser)"
+  $SUDO -u $xuser DISPLAY=$DISPLAY $XHOST +SI:localuser:$username > /dev/null
+}
+
+xhost_remove_user()
+{
+  local username="$1"
+  local xuser="$(get_xuser)"
+  $SUDO -u $xuser DISPLAY=$DISPLAY $XHOST -SI:localuser:$username > /dev/null
+}
+
+on_exit()
+{
+  xhost_remove_user root
+  $ECHO "Log output was written to '$LOGFILE'."
+  #$SLEEP $DELAY_EXIT
+  read -p "Press return to close this window ..." dummy
+  $ECHO # line break
+  exit $@
+}
 
 on_add()
 {
   $ECHO "=== $(date) ==="
-  [ ! -b "$DEVNAME" ] && return # device not found
+  if [ ! -b "$DEVNAME" ]; then
+    $ECHO "Given device '$DEVNAME' not found!"
+    on_exit 1 # device not found
+  fi
   $SLEEP 5
   env
-  $ECHO "Making sure device is not mounted:"
+  $ECHO "Making sure the device is not mounted:"
   for dname in ${DEVNAME}*; do
     $ECHO "  Unmounting '$dname' ..."
     $UMOUNT "$dname"
   done
   $ECHO done
+  on_exit 0
 }
 
 run()
@@ -120,7 +172,11 @@ run()
     install) install $@ ;;
     # let udev launch this script in background
     # run() redirects logging internally before it vanishes in /dev/null
-    udev_on_add) nohup "$script_path" on_add > /dev/null 2>&1 & ;;
+    udev_on_add)
+      xhost_add_user root
+      nohup ${TERM} ${TERMFONT} -geometry ${TERMGEOM} \
+         -title "${TERMTITLE}" \
+         -e "$script_path on_add" > /dev/null 2>&1 & ;;
     on_add) on_add ;;
   esac
 }
