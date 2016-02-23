@@ -83,13 +83,22 @@ EOF
 
 SIMULATE=0
 # modify global settings
-if [ "$SIMULATE" -eq 1 ]; then
+if [ "$SIMULATE" -eq "1" ]; then
   MKTEMP="$MKTEMP -u"
 fi
 
 sim()
 {
-  if [ "$SIMULATE" -eq "1" -o "x${1}x" != x1x ]; then
+  local is_sim="$SIMULATE"
+  if [ "x${1}x" = x1x ]; then
+    shift 1
+    local is_sim=1
+  fi
+  if [ "x${1}x" = x0x ]; then
+    shift 1
+    local is_sim=0
+  fi
+  if [ "$is_sim" -eq "1" ]; then
     $ECHO "$@"
   else
     $@
@@ -252,14 +261,14 @@ do_backup()
     local subpath="@$subpath"
     $ECHO $subpath
     local basepath="${subpath%/*}"
-echo    $MKDIR -p "$dest/$basepath"
-echo     $BTRFS property set "$src/$subpath" ro true
+    sim 1 $MKDIR -p "$dest/$basepath"
+    sim 1 $BTRFS property set "$src/$subpath" ro true
     local ts=$($DATE +%s)
     local oldpath="$src/@$prev/${subpath#*/}"
     if [ -d "$oldpath" ]; then
-echo "     $BTRFS send -v -p "$oldpath" "$src/$subpath" | $BTRFS rec -v "$dest/$basepath""
+      sim 1 $BTRFS send -v -p "$oldpath" "$src/$subpath" | $BTRFS rec -v "$dest/$basepath"
     else
-echo "     $BTRFS send -v "$src/$subpath" | $BTRFS rec -v "$dest/$basepath""
+      sim 1 $BTRFS send -v "$src/$subpath" | $BTRFS rec -v "$dest/$basepath"
     fi
     local elapsed="$(($($DATE +%s) - $ts))"
     local elapsed_sum="$(($elapsed_sum + $elapsed))"
