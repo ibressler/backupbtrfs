@@ -57,6 +57,11 @@ TC_FS_OPTS="defaults,noauto,noatime,nodiratime,compress-force=lzo"
 HDPARM="/sbin/hdparm"
 STDBUF="/usr/bin/stdbuf"
 
+script_name="$(basename "$0")"
+script_path="$(cd "$(dirname "$0")" && pwd)"
+mksnap_script="$script_path/makesnapshot.sh"
+script_path="$script_path/$script_name"
+
 check_su()
 {
   if [ "x$($WHOAMI)" != "xroot" ]
@@ -280,7 +285,7 @@ do_backup()
   fi
   if [ "$next" = "$prev" ]; then
     $ECHO "$PREFIX No newer snapshots found, creating new ones ..."
-    sim 1 $mksnap_script
+    sim 0 $mksnap_script
     local next="$(get_newest_snap_name "$src" "$prev")"
   fi
   if [ -z "$next" ]; then
@@ -376,9 +381,6 @@ truncate_file()
   $CP "$ftmp" "$fpath"
   $RM "$ftmp"
 }
-
-script_name="$(basename "$0")"
-script_path="$(cd "$(dirname "$0")" && pwd)/$script_name"
 
 if [ -w "$LOGFILE" ]; then
   truncate_file "$LOGFILE"
