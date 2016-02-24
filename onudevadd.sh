@@ -32,6 +32,7 @@ PS="/bin/ps"
 LS="/bin/ls"
 WC="/usr/bin/wc"
 MKTEMP="/bin/mktemp"
+EJECT="/usr/bin/eject"
 
 CP="/bin/cp"
 RM="/bin/rm"
@@ -207,6 +208,7 @@ mount_or_umount()
       if [ -x "$HDPARM" -a -z "$do_sleep" ]; then
         sim $HDPARM -Y "$devname" && \
         $ECHO "$PREFIX It is now safe to unplug the device."
+        $EJECT "$devname"
       fi
       ;;
   esac
