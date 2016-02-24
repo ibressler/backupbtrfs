@@ -55,6 +55,7 @@ TRUECRYPT="/usr/bin/truecrypt"
 TC_FS="btrfs"
 TC_FS_OPTS="defaults,noauto,noatime,nodiratime,compress-force=lzo"
 HDPARM="/sbin/hdparm"
+STDBUF="/usr/bin/stdbuf"
 
 check_su()
 {
@@ -194,17 +195,19 @@ mount_or_umount()
   local mountpoint="$3"
   local mountpart="$(get_partition "$devname")"
   [ -b "$mountpart" ] || return
-  # TODO: fix missing truecrypt password prompt and clipboard-paste...
   case "$cmd" in
     mount) 
-      sim $TRUECRYPT -t --protect-hidden=no --keyfiles= --filesystem="$TC_FS" \
+      # stdbuf disables stdout buffering for truecrypt,
+      # otherwise the password prompt is not shown
+      sim $STDBUF -o 0 $TRUECRYPT -t --protect-hidden=no --keyfiles= \
+        --filesystem="$TC_FS" \
         --fs-options="$TC_FS_OPTS" \
         --mount "$mountpart" "$mountpoint" 2>&1
       ;;
     umount)
       # unmount and put drive to sleep via hdparm -Y
       # (avoids emergency stop at hot-unplug)
-      sim $TRUECRYPT -t -d "$mountpart" 2>&1
+      sim $STDBUF -o 0 $TRUECRYPT -t -d "$mountpart" 2>&1
       read -p "Press <enter> to put '$devname' to sleep ('n' aborts): " do_sleep
       if [ -x "$HDPARM" -a -z "$do_sleep" ]; then
         sim $HDPARM -Y "$devname" && \
