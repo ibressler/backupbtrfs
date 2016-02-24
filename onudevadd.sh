@@ -192,6 +192,7 @@ mount_or_umount()
   local mountpoint="$3"
   local mountpart="$(get_partition "$devname")"
   [ -b "$mountpart" ] || return
+  # TODO: fix missing truecrypt password prompt and clipboard-paste...
   case "$cmd" in
     mount) 
       sim $TRUECRYPT -t --protect-hidden=no --keyfiles= --filesystem="$TC_FS" \
@@ -201,8 +202,9 @@ mount_or_umount()
     umount)
       # unmount and put drive to sleep via hdparm -Y
       # (avoids emergency stop at hot-unplug)
-      sim $TRUECRYPT -t -d "$mountpart" 2>&1 && \
-      if [ -x "$HDPARM" ]; then
+      sim $TRUECRYPT -t -d "$mountpart" 2>&1
+      read -p "Press <enter> to put '$devname' to sleep ('n' aborts): " do_sleep
+      if [ -x "$HDPARM" -a -z "$do_sleep" ]; then
         sim $HDPARM -Y "$devname" && \
         $ECHO "$PREFIX It is now safe to unplug the device."
       fi
