@@ -231,6 +231,23 @@ format_elapsed_secs()
 # be found; it is expected to be configured in /etc/fstab
 BACKUP_SOURCE="/mnt/root"
 
+get_newest_snap_name()
+{
+  local searchdir="$1"
+  local refname="$2"
+  if [ -z "$searchdir" ] || [ ! -d "$searchdir" ]; then
+    $ECHO ""
+    return
+  fi
+  local new="$(cd "$searchdir" && \
+                $LS -1r | \
+                $GREP -E '^@[0-9]+' | \
+                $GREP -B1 "$refname" | \
+                $HEAD -n1 | \
+                $AWK -F'@' '{print $2}')" # strip leading @
+  $ECHO "$new"
+}
+
 do_backup()
 {
   local dest="$1"
@@ -240,10 +257,7 @@ do_backup()
   $ECHO " Transferring backup snapshots to external storage ..."
   # get the name of the previous snapshot on external storage
   # assuming alpha numerical sorting, inversed order: newest on top
-  local prev="$(cd "$dest" && $LS -1r | \
-                              $GREP -E '^@[0-9]+' | \
-                              $HEAD -n1 | \
-                              $AWK -F'@' '{print $2}')" # strip leading @
+  local prev="$(get_newest_snap_name "$dest")"
   if [ -z "$prev" ]; then
     $ECHO " Previous snapshots name not found!"
     return
@@ -259,17 +273,18 @@ do_backup()
   # in order to get the next snapshot name, find the previous one in the
   # source directory and chose the one above, assuming alnum sorting
   # (see above)
-  local next="$(cd "$src" && $LS -1r | \
-                             $GREP -E '^@[0-9]+' | \
-                             $GREP -B1 "$prev" | \
-                             $HEAD -n1 | \
-                             $AWK -F'@' '{print $2}')" # strip leading @
+  local next="$(get_newest_snap_name "$src" "$prev")"
   if [ -z "$next" ]; then
     $ECHO " Next snapshots name not found!"
     return
   fi
   if [ "$next" = "$prev" ]; then
     $ECHO "$PREFIX No newer snapshots found, creating new ones ..."
+    sim 1 $mksnap_script
+    local next="$(get_newest_snap_name "$src" "$prev")"
+  fi
+  if [ -z "$next" ]; then
+    $ECHO " Next snapshots name not found!"
     return
   fi
   $ECHO " Next snapshots to backup: '$next'"
