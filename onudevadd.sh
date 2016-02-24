@@ -38,9 +38,10 @@ CP="/bin/cp"
 RM="/bin/rm"
 TAIL="/usr/bin/tail"
 
-TERM="/usr/bin/xterm"
+#TERM="/usr/bin/xterm"
+TERM="/usr/bin/x-terminal-emulator"
 DISPLAY=":0"
-TERMFONT="-fa Monospace -fs 10 -display ${DISPLAY}"
+TERMFONT="-fa Monospace -fs 10"
 TERMGEOM="120x20+300+300"
 TERMTITLE="Backup storage connected ..."
 
@@ -339,6 +340,7 @@ run()
     # run() redirects logging internally before it vanishes in /dev/null
     udev_on_add)
       xhost_add_user root
+      DISPLAY="$DISPLAY" \
       nohup ${TERM} ${TERMFONT} -geometry ${TERMGEOM} \
          -title "${TERMTITLE}" \
          -e "$script_path on_add" > /dev/null 2>&1 & ;;
