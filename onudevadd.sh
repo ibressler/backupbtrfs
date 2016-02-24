@@ -235,7 +235,7 @@ do_backup()
     $ECHO "Previous snapshot name not found!"
     return
   fi
-  echo prev $prev
+  echo "Previous snapshots:       '$prev'"
   # create source mount point if necessary
   [ -d "$src" ] || sim $MKDIR "$src"
   if ! $MOUNT | $GREP -q " $src "; then
@@ -254,7 +254,7 @@ do_backup()
     $ECHO "Next snapshot name not found!"
     return
   fi
-  echo next "$next"
+  echo "Next snapshots to backup: '$next'"
   # btrfs backup, differential between $prev and $new
   local elapsed_sum=0
   local btrfs_sim=0
