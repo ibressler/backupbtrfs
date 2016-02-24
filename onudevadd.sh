@@ -44,6 +44,7 @@ TERMGEOM="120x20+300+300"
 TERMTITLE="Backup storage connected ..."
 
 EXIT_DELAY=5 # wait a moment to let the user read log messages
+PREFIX=" ==>"
 
 XHOST="/usr/bin/xhost"
 SUDO="/usr/bin/sudo"
@@ -200,7 +201,11 @@ mount_or_umount()
     umount)
       # unmount and put drive to sleep via hdparm -Y
       # (avoids emergency stop at hot-unplug)
-      sim $TRUECRYPT -t -d "$mountpart" 2>&1 && [ -x "$HDPARM" ] && sim $HDPARM -Y "$devname"
+      sim $TRUECRYPT -t -d "$mountpart" 2>&1 && \
+      if [ -x "$HDPARM" ]; then
+        sim $HDPARM -Y "$devname" && \
+        $ECHO "$PREFIX It is now safe to unplug the device."
+      fi
       ;;
   esac
 }
@@ -232,7 +237,7 @@ do_backup()
                               $HEAD -n1 | \
                               $AWK -F'@' '{print $2}')" # strip leading @
   if [ -z "$prev" ]; then
-    $ECHO "Previous snapshot name not found!"
+    $ECHO "Previous snapshots name not found!"
     return
   fi
   echo "Previous snapshots:       '$prev'"
@@ -247,12 +252,16 @@ do_backup()
   # source directory and chose the one above, assuming alnum sorting
   # (see above)
   local next="$(cd "$src" && $LS -1r | \
+                             $GREP -E '^@[0-9]+' | \
                              $GREP -B1 "$prev" | \
                              $HEAD -n1 | \
                              $AWK -F'@' '{print $2}')" # strip leading @
   if [ -z "$next" ]; then
-    $ECHO "Next snapshot name not found!"
+    $ECHO "Next snapshots name not found!"
     return
+  fi
+  if [ "$next" = "$prev" ]; then
+    $ECHO " => No newer snapshots found, creating new ones ..."
   fi
   echo "Next snapshots to backup: '$next'"
   # btrfs backup, differential between $prev and $new
@@ -265,7 +274,7 @@ do_backup()
                    $AWK -F' @' '{print $2}')
   do
     local subpath="@$subpath"
-    $ECHO $subpath
+    $ECHO " Processing '$subpath' ..."
     local basepath="${subpath%/*}"
     sim $btrfs_sim $MKDIR -p "$dest/$basepath"
     sim $btrfs_sim $BTRFS property set "$src/$subpath" ro true
@@ -279,9 +288,9 @@ do_backup()
     fi
     local elapsed="$(($($DATE +%s) - $ts))"
     local elapsed_sum="$(($elapsed_sum + $elapsed))"
-    $ECHO " ==> done in $(format_elapsed_secs $elapsed)"
+    $ECHO "$PREFIX done in $(format_elapsed_secs $elapsed)"
   done
-  $ECHO " ==> Overall time: $(format_elapsed_secs $elapsed_sum)"
+  $ECHO "$PREFIX Overall time: $(format_elapsed_secs $elapsed_sum)"
 }
 
 on_add()
@@ -292,8 +301,7 @@ on_add()
     $ECHO "Given device '$DEVNAME' not found!"
     on_exit 1 # device not found
   fi
-  $SLEEP 5
-#  env
+  $SLEEP 5 # DELAY to let the drive settle, auto-mount or similar
   $ECHO "Making sure the device is not mounted:"
   for dname in ${DEVNAME}*; do
     $ECHO "  Unmounting '$dname' ..."
@@ -305,11 +313,11 @@ on_add()
   fi
   local mountpoint="$($MKTEMP -d --tmpdir=/mnt)"
   mount_or_umount mount "$DEVNAME" "$mountpoint"
-  $SLEEP 1
+  $SLEEP 1 # DELAY to let the mounted fs settle, not sure if required
   do_backup "$mountpoint" "$BACKUP_SOURCE"
   mount_or_umount umount "$DEVNAME" "$mountpoint"
   sim $RMDIR --ignore-fail-on-non-empty "$mountpoint"
-  $ECHO done
+  $ECHO done.
   on_exit 0
 }
 
