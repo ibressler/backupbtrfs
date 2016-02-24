@@ -252,6 +252,7 @@ do_backup()
   echo next "$next"
   # btrfs backup, differential between $prev and $new
   local elapsed_sum=0
+  local btrfs_sim=0
   local IFS=$'
 '
   for subpath in $($BTRFS sub list "$src" 2>&1 | \
@@ -261,14 +262,15 @@ do_backup()
     local subpath="@$subpath"
     $ECHO $subpath
     local basepath="${subpath%/*}"
-    sim 1 $MKDIR -p "$dest/$basepath"
-    sim 1 $BTRFS property set "$src/$subpath" ro true
+    sim $btrfs_sim $MKDIR -p "$dest/$basepath"
+    sim $btrfs_sim $BTRFS property set "$src/$subpath" ro true
     local ts=$($DATE +%s)
     local oldpath="$src/@$prev/${subpath#*/}"
     if [ -d "$oldpath" ]; then
-      sim 1 $BTRFS send -v -p "$oldpath" "$src/$subpath" | $BTRFS rec -v "$dest/$basepath"
+      sim $btrfs_sim $BTRFS send -v -p "$oldpath" "$src/$subpath" | \
+                     $BTRFS rec -v "$dest/$basepath"
     else
-      sim 1 $BTRFS send -v "$src/$subpath" | $BTRFS rec -v "$dest/$basepath"
+      sim $btrfs_sim $BTRFS send -v "$src/$subpath" | $BTRFS rec -v "$dest/$basepath"
     fi
     local elapsed="$(($($DATE +%s) - $ts))"
     local elapsed_sum="$(($elapsed_sum + $elapsed))"
