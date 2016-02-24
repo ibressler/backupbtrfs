@@ -331,11 +331,15 @@ on_add()
     on_exit 1 # device not found
   fi
   $SLEEP 5 # DELAY to let the drive settle, auto-mount or similar
-  $ECHO "Making sure the device is not mounted:"
-  for dname in ${DEVNAME}*; do
-    $ECHO "  Unmounting '$dname' ..."
-    sim $UMOUNT "$dname"
-  done
+  if $MOUNT | $GREP -q "$DEVNAME"; then
+    $ECHO "Making sure the device is not mounted:"
+    for dname in ${DEVNAME}*; do
+      if $MOUNT | $GREP -q "$dname"; then
+        $ECHO "  Unmounting '$dname' ..."
+        sim $UMOUNT "$dname"
+      fi
+    done
+  fi
   if [ ! -x "$TRUECRYPT" ]; then
     $ECHO "Truecrypt binary '$TRUECRYPT' is not executable or not found!"
     on_exit 1
