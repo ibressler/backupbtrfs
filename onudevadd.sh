@@ -11,6 +11,7 @@
 
 udev_rule="/etc/udev/rules.d/99-backup-storage.rules"
 LOGFILE="/var/log/onudevadd.log"
+LOG_MAX_LINES=2000 # initially wipe old log entries up to this number of lines
 
 ECHO="/bin/echo"
 BTRFS="/bin/btrfs"
@@ -31,6 +32,10 @@ PS="/bin/ps"
 LS="/bin/ls"
 WC="/usr/bin/wc"
 MKTEMP="/bin/mktemp"
+
+CP="/bin/cp"
+RM="/bin/rm"
+TAIL="/usr/bin/tail"
 
 TERM="/usr/bin/xterm"
 DISPLAY=":0"
@@ -329,10 +334,21 @@ run()
   esac
 }
 
+truncate_file()
+{
+  local fpath="$1"
+  [ -w "$fpath" ] || return # no write access
+  local ftmp=$($MKTEMP)
+  $TAIL -n $LOG_MAX_LINES "$fpath" > "$ftmp"
+  $CP "$ftmp" "$fpath"
+  $RM "$ftmp"
+}
+
 script_name="$(basename "$0")"
 script_path="$(cd "$(dirname "$0")" && pwd)/$script_name"
 
 if [ -w "$LOGFILE" ]; then
+  truncate_file "$LOGFILE"
   run "$@" 2>&1 | $TEE -a "$LOGFILE"
 else
   run "$@" 2>&1
