@@ -233,11 +233,11 @@ BACKUP_SOURCE="/mnt/root"
 
 do_backup()
 {
-  $ECHO do_backup $@
   local dest="$1"
   local src="$2"
   [ -d "$dest" ] || return
   [ -z "$src" ] && return
+  $ECHO " Transferring backup snapshots to external storage ..."
   # get the name of the previous snapshot on external storage
   # assuming alpha numerical sorting, inversed order: newest on top
   local prev="$(cd "$dest" && $LS -1r | \
@@ -245,15 +245,15 @@ do_backup()
                               $HEAD -n1 | \
                               $AWK -F'@' '{print $2}')" # strip leading @
   if [ -z "$prev" ]; then
-    $ECHO "Previous snapshots name not found!"
+    $ECHO " Previous snapshots name not found!"
     return
   fi
-  echo "Previous snapshots:       '$prev'"
+  $ECHO " Previous snapshots:       '$prev'"
   # create source mount point if necessary
   [ -d "$src" ] || sim $MKDIR "$src"
   if ! $MOUNT | $GREP -q " $src "; then
     # mount source if not already mounted, expected to be in /etc/fstab
-    $ECHO "Mounting '$src' ..."
+    $ECHO " Mounting '$src' ..."
     sim $MOUNT "$src"
   fi
   # in order to get the next snapshot name, find the previous one in the
@@ -265,13 +265,14 @@ do_backup()
                              $HEAD -n1 | \
                              $AWK -F'@' '{print $2}')" # strip leading @
   if [ -z "$next" ]; then
-    $ECHO "Next snapshots name not found!"
+    $ECHO " Next snapshots name not found!"
     return
   fi
   if [ "$next" = "$prev" ]; then
-    $ECHO " => No newer snapshots found, creating new ones ..."
+    $ECHO "$PREFIX No newer snapshots found, creating new ones ..."
+    return
   fi
-  echo "Next snapshots to backup: '$next'"
+  $ECHO " Next snapshots to backup: '$next'"
   # btrfs backup, differential between $prev and $new
   local elapsed_sum=0
   local btrfs_sim=0
