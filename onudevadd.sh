@@ -213,6 +213,7 @@ mount_or_umount()
       # unmount and put drive to sleep via hdparm -Y
       # (avoids emergency stop at hot-unplug)
       sim $STDBUF -o 0 $TRUECRYPT -t -d "$mountpart" 2>&1
+      # FIXME: make timeout before putting drive to sleep, allowing to skip sleep
       read -p "Press <enter> to put '$devname' to sleep ('n' aborts): " do_sleep
       if [ -x "$HDPARM" -a -z "$do_sleep" ]; then
         sim $HDPARM -Y "$devname" && \
@@ -344,7 +345,7 @@ on_add()
     $ECHO "Truecrypt binary '$TRUECRYPT' is not executable or not found!"
     on_exit 1
   fi
-  local mountpoint="$($MKTEMP -d --tmpdir=/mnt)"
+  local mountpoint="$($MKTEMP -d --tmpdir=/mnt)" # FIXME: remove on abort?
   mount_or_umount mount "$DEVNAME" "$mountpoint"
   $SLEEP 1 # DELAY to let the mounted fs settle, not sure if required
   do_backup "$mountpoint" "$BACKUP_SOURCE"
